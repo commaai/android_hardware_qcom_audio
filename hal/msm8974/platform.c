@@ -53,6 +53,7 @@
 
 
 #define PLATFORM_INFO_XML_PATH      "/system/etc/audio_platform_info.xml"
+#define PLATFORM_INFO_XML_PATH_LEPRO      "/system/etc/audio_platform_info_lepro.xml"
 #define PLATFORM_INFO_XML_PATH_I2S  "/system/etc/audio_platform_info_i2s.xml"
 #include <linux/msm_audio.h>
 
@@ -1286,6 +1287,16 @@ static int platform_acdb_init(void *platform)
     return result;
 }
 
+bool is_lepro() {
+  char bytes[4] = {0};
+  FILE *f = fopen("/sys/firmware/devicetree/base/model", "rb");
+  if (f != NULL) {
+    fread(bytes, 1, 4, f);
+    fclose(f);
+  }
+  return memcmp(bytes, "Letv", 4) == 0;
+}
+
 void *platform_init(struct audio_device *adev)
 {
     char platform[PROPERTY_VALUE_MAX];
@@ -1367,6 +1378,9 @@ void *platform_init(struct audio_device *adev)
                         MIXER_PATH_MAX_LENGTH);
                     strlcat(mixer_xml_file, snd_internal_name,
                         MIXER_PATH_MAX_LENGTH);
+                    if (is_lepro()) {
+                      strlcat(mixer_xml_file, "lepro", MIXER_PATH_MAX_LENGTH);
+                    }
                     strlcat(mixer_xml_file, MIXER_FILE_EXT,
                         MIXER_PATH_MAX_LENGTH);
                 } else {
@@ -1561,8 +1575,14 @@ acdb_init_fail:
     /* Initialize ACDB ID's */
     if (my_data->is_i2s_ext_modem)
         platform_info_init(PLATFORM_INFO_XML_PATH_I2S, my_data);
-    else
+    else {
+      if (is_lepro()) {
+        platform_info_init(PLATFORM_INFO_XML_PATH_LEPRO, my_data);
+      } else {
         platform_info_init(PLATFORM_INFO_XML_PATH, my_data);
+      }
+    }
+
 
     /* If platform is apq8084 and baseband is MDM, load CSD Client specific
      * symbols. Voice call is handled by MDM and apps processor talks to
